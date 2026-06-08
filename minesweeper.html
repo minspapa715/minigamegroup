@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>지뢰찾기</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    .home-btn {
+      position: fixed; top: 16px; left: 16px;
+      text-decoration: none; color: #aaa;
+      background: #16213e; border: 1px solid #333;
+      padding: 8px 16px; border-radius: 8px;
+      font-size: 0.85rem; transition: color 0.2s;
+    }
+    .home-btn:hover { color: #e94560; border-color: #e94560; }
+
+    body {
+      background: #1a1a2e;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      font-family: 'Segoe UI', sans-serif;
+      color: #eee;
+    }
+
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 16px;
+      letter-spacing: 2px;
+      color: #e94560;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .controls button {
+      padding: 8px 18px;
+      border: none;
+      border-radius: 6px;
+      background: #16213e;
+      color: #eee;
+      cursor: pointer;
+      font-size: 0.9rem;
+      border: 1px solid #e94560;
+      transition: background 0.2s;
+    }
+
+    .controls button:hover,
+    .controls button.active {
+      background: #e94560;
+      color: #fff;
+    }
+
+    .info-bar {
+      display: flex;
+      gap: 30px;
+      margin-bottom: 14px;
+      background: #16213e;
+      padding: 10px 28px;
+      border-radius: 10px;
+      font-size: 1.1rem;
+      align-items: center;
+    }
+
+    .info-bar span { display: flex; align-items: center; gap: 6px; }
+
+    .reset-btn {
+      font-size: 1.5rem;
+      background: none;
+      border: none;
+      cursor: pointer;
+      transition: transform 0.1s;
+    }
+    .reset-btn:hover { transform: scale(1.2); }
+
+    #board {
+      display: inline-grid;
+      gap: 3px;
+      background: #0f3460;
+      padding: 12px;
+      border-radius: 10px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      user-select: none;
+    }
+
+    .cell {
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      font-weight: bold;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background 0.1s, transform 0.08s;
+      border: none;
+    }
+
+    .cell.hidden {
+      background: #1a4a7a;
+      box-shadow: inset 0 2px 0 rgba(255,255,255,0.15), inset 0 -2px 0 rgba(0,0,0,0.3);
+    }
+    .cell.hidden:hover { background: #1e5590; transform: scale(1.05); }
+
+    .cell.revealed {
+      background: #0a2a4a;
+      cursor: default;
+      box-shadow: none;
+    }
+
+    .cell.flagged {
+      background: #1a4a7a;
+      font-size: 1.1rem;
+    }
+
+    .cell.mine-hit { background: #c0392b !important; }
+    .cell.mine-reveal { background: #0a2a4a; }
+
+    .n1 { color: #74b9ff; }
+    .n2 { color: #55efc4; }
+    .n3 { color: #fd79a8; }
+    .n4 { color: #a29bfe; }
+    .n5 { color: #e17055; }
+    .n6 { color: #00cec9; }
+    .n7 { color: #e84393; }
+    .n8 { color: #dfe6e9; }
+
+    #message {
+      margin-top: 16px;
+      font-size: 1.3rem;
+      font-weight: bold;
+      min-height: 30px;
+      color: #ffeaa7;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <a class="home-btn" href="index.html">← 홈</a>
+  <h1>💣 지뢰찾기</h1>
+
+  <div class="controls">
+    <button onclick="setDifficulty('easy')" id="btn-easy" class="active">쉬움 (9×9)</button>
+    <button onclick="setDifficulty('medium')" id="btn-medium">보통 (16×16)</button>
+    <button onclick="setDifficulty('hard')" id="btn-hard">어려움 (30×16)</button>
+  </div>
+
+  <div class="info-bar">
+    <span>💣 <span id="mine-count">10</span></span>
+    <button class="reset-btn" onclick="initGame()" title="새 게임">🙂</button>
+    <span>⏱ <span id="timer">0</span>s</span>
+  </div>
+
+  <div id="board"></div>
+  <div id="message"></div>
+
+  <script>
+    const DIFFICULTIES = {
+      easy:   { rows: 9,  cols: 9,  mines: 10 },
+      medium: { rows: 16, cols: 16, mines: 40 },
+      hard:   { rows: 16, cols: 30, mines: 99 },
+    };
+
+    let difficulty = 'easy';
+    let rows, cols, totalMines;
+    let grid, revealed, flagged;
+    let gameOver, firstClick;
+    let timerInterval, seconds;
+
+    function setDifficulty(d) {
+      difficulty = d;
+      document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active'));
+      document.getElementById('btn-' + d).classList.add('active');
+      initGame();
+    }
+
+    function initGame() {
+      const cfg = DIFFICULTIES[difficulty];
+      rows = cfg.rows; cols = cfg.cols; totalMines = cfg.mines;
+      grid = Array.from({length: rows}, () => Array(cols).fill(0));
+      revealed = Array.from({length: rows}, () => Array(cols).fill(false));
+      flagged = Array.from({length: rows}, () => Array(cols).fill(false));
+      gameOver = false;
+      firstClick = true;
+      seconds = 0;
+      clearInterval(timerInterval);
+
+      document.getElementById('mine-count').textContent = totalMines;
+      document.getElementById('timer').textContent = '0';
+      document.getElementById('message').textContent = '';
+      document.querySelector('.reset-btn').textContent = '🙂';
+
+      renderBoard();
+    }
+
+    function placeMines(safeR, safeC) {
+      let placed = 0;
+      while (placed < totalMines) {
+        const r = Math.floor(Math.random() * rows);
+        const c = Math.floor(Math.random() * cols);
+        if (grid[r][c] === -1) continue;
+        if (Math.abs(r - safeR) <= 1 && Math.abs(c - safeC) <= 1) continue;
+        grid[r][c] = -1;
+        placed++;
+      }
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          if (grid[r][c] === -1) continue;
+          grid[r][c] = countAdjacentMines(r, c);
+        }
+      }
+    }
+
+    function countAdjacentMines(r, c) {
+      let count = 0;
+      for (let dr = -1; dr <= 1; dr++)
+        for (let dc = -1; dc <= 1; dc++) {
+          const nr = r + dr, nc = c + dc;
+          if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && grid[nr][nc] === -1) count++;
+        }
+      return count;
+    }
+
+    function renderBoard() {
+      const board = document.getElementById('board');
+      board.style.gridTemplateColumns = `repeat(${cols}, 36px)`;
+      board.innerHTML = '';
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const cell = document.createElement('div');
+          cell.className = 'cell hidden';
+          cell.dataset.r = r;
+          cell.dataset.c = c;
+          cell.addEventListener('click', onLeftClick);
+          cell.addEventListener('contextmenu', onRightClick);
+          board.appendChild(cell);
+        }
+      }
+    }
+
+    function getCell(r, c) {
+      return document.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`);
+    }
+
+    function updateCell(r, c) {
+      const cell = getCell(r, c);
+      if (!cell) return;
+
+      if (flagged[r][c]) {
+        cell.className = 'cell flagged';
+        cell.textContent = '🚩';
+        return;
+      }
+      if (!revealed[r][c]) {
+        cell.className = 'cell hidden';
+        cell.textContent = '';
+        return;
+      }
+      if (grid[r][c] === -1) {
+        cell.className = 'cell revealed mine-reveal';
+        cell.textContent = '💣';
+        return;
+      }
+      cell.className = 'cell revealed';
+      if (grid[r][c] > 0) {
+        cell.textContent = grid[r][c];
+        cell.classList.add('n' + grid[r][c]);
+      } else {
+        cell.textContent = '';
+      }
+    }
+
+    function onLeftClick(e) {
+      const r = +e.currentTarget.dataset.r;
+      const c = +e.currentTarget.dataset.c;
+      if (gameOver || flagged[r][c] || revealed[r][c]) return;
+
+      if (firstClick) {
+        firstClick = false;
+        placeMines(r, c);
+        timerInterval = setInterval(() => {
+          seconds++;
+          document.getElementById('timer').textContent = seconds;
+        }, 1000);
+      }
+
+      if (grid[r][c] === -1) {
+        revealMines(r, c);
+        return;
+      }
+
+      floodReveal(r, c);
+      checkWin();
+    }
+
+    function onRightClick(e) {
+      e.preventDefault();
+      const r = +e.currentTarget.dataset.r;
+      const c = +e.currentTarget.dataset.c;
+      if (gameOver || revealed[r][c]) return;
+
+      flagged[r][c] = !flagged[r][c];
+      const remaining = totalMines - flagged.flat().filter(Boolean).length;
+      document.getElementById('mine-count').textContent = remaining;
+      updateCell(r, c);
+    }
+
+    function floodReveal(r, c) {
+      if (r < 0 || r >= rows || c < 0 || c >= cols) return;
+      if (revealed[r][c] || flagged[r][c]) return;
+      revealed[r][c] = true;
+      updateCell(r, c);
+      if (grid[r][c] === 0) {
+        for (let dr = -1; dr <= 1; dr++)
+          for (let dc = -1; dc <= 1; dc++)
+            floodReveal(r + dr, c + dc);
+      }
+    }
+
+    function revealMines(hitR, hitC) {
+      gameOver = true;
+      clearInterval(timerInterval);
+      document.querySelector('.reset-btn').textContent = '😵';
+
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          if (grid[r][c] === -1) {
+            revealed[r][c] = true;
+            updateCell(r, c);
+          }
+        }
+      }
+      const hitCell = getCell(hitR, hitC);
+      hitCell.classList.add('mine-hit');
+      document.getElementById('message').textContent = '💥 게임 오버! 다시 도전해보세요.';
+    }
+
+    function checkWin() {
+      let unrevealedSafe = 0;
+      for (let r = 0; r < rows; r++)
+        for (let c = 0; c < cols; c++)
+          if (!revealed[r][c] && grid[r][c] !== -1) unrevealedSafe++;
+
+      if (unrevealedSafe === 0) {
+        gameOver = true;
+        clearInterval(timerInterval);
+        document.querySelector('.reset-btn').textContent = '😎';
+        document.getElementById('message').textContent = `🎉 클리어! ${seconds}초 만에 성공했습니다!`;
+      }
+    }
+
+    initGame();
+  </script>
+</body>
+</html>

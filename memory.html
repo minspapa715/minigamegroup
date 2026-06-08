@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🃏 기억력 카드</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #1a1a2e;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      min-height: 100vh;
+      font-family: 'Segoe UI', sans-serif; color: #eee;
+    }
+    .home-btn {
+      position: fixed; top: 16px; left: 16px;
+      text-decoration: none; color: #aaa;
+      background: #16213e; border: 1px solid #333;
+      padding: 8px 16px; border-radius: 8px;
+      font-size: 0.85rem; transition: color 0.2s;
+    }
+    .home-btn:hover { color: #a29bfe; border-color: #a29bfe; }
+    h1 { font-size: 2rem; color: #a29bfe; letter-spacing: 2px; margin-bottom: 14px; }
+    .info-bar {
+      display: flex; gap: 30px; margin-bottom: 14px;
+      background: #16213e; padding: 10px 28px; border-radius: 10px; font-size: 1.1rem;
+    }
+    .controls { display: flex; gap: 10px; margin-bottom: 14px; }
+    .controls button {
+      padding: 7px 16px; border: none; border-radius: 6px;
+      background: #16213e; color: #eee; cursor: pointer;
+      font-size: 0.88rem; border: 1px solid #a29bfe; transition: background 0.2s;
+    }
+    .controls button:hover, .controls button.active { background: #a29bfe; color: #fff; }
+
+    #grid {
+      display: grid; gap: 10px;
+      padding: 16px; background: #0f3460;
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
+
+    .card {
+      width: 70px; height: 70px;
+      border-radius: 10px;
+      cursor: pointer;
+      position: relative;
+      transform-style: preserve-3d;
+      transition: transform 0.35s;
+    }
+    .card.flipped, .card.matched { transform: rotateY(180deg); }
+
+    .card-front, .card-back {
+      position: absolute; inset: 0;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      backface-visibility: hidden;
+    }
+    .card-front {
+      background: #1a4a7a;
+      font-size: 1.5rem;
+      box-shadow: inset 0 2px 0 rgba(255,255,255,0.15);
+    }
+    .card-back {
+      background: #16213e;
+      font-size: 2rem;
+      transform: rotateY(180deg);
+    }
+    .card.matched .card-back { background: #2d3d2d; }
+
+    #message {
+      margin-top: 14px; font-size: 1.2rem; font-weight: bold;
+      color: #ffeaa7; min-height: 28px; text-align: center;
+    }
+    .btn {
+      margin-top: 12px; padding: 10px 28px; border: none;
+      border-radius: 8px; background: #a29bfe; color: #1a1a2e;
+      font-size: 1rem; font-weight: 700; cursor: pointer; transition: opacity 0.2s;
+    }
+    .btn:hover { opacity: 0.85; }
+  </style>
+</head>
+<body>
+  <a class="home-btn" href="index.html">← 홈</a>
+  <h1>🃏 기억력 카드</h1>
+
+  <div class="controls">
+    <button onclick="setSize(4)" id="btn-4" class="active">쉬움 (4×4)</button>
+    <button onclick="setSize(5)" id="btn-5">보통 (5×4)</button>
+    <button onclick="setSize(6)" id="btn-6">어려움 (6×5)</button>
+  </div>
+
+  <div class="info-bar">
+    <span>시도: <strong id="moves">0</strong></span>
+    <span>남은 쌍: <strong id="pairs">0</strong></span>
+    <span>⏱ <strong id="timer">0</strong>s</span>
+  </div>
+
+  <div id="grid"></div>
+  <div id="message"></div>
+  <button class="btn" onclick="initGame()">새 게임</button>
+
+  <script>
+    const EMOJIS = ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯',
+                    '🦁','🐮','🐷','🐸','🐵','🐔','🐧','🐦','🦆','🦉',
+                    '🦋','🐢','🐍','🦎','🦕','🐙','🦑','🦀','🐡','🌸'];
+
+    let cols, rows, cards, flipped, matched, moves, timerInterval, seconds, lock;
+    let gridCols = 4;
+
+    function setSize(c) {
+      gridCols = c;
+      document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active'));
+      document.getElementById('btn-' + c).classList.add('active');
+      initGame();
+    }
+
+    function initGame() {
+      clearInterval(timerInterval);
+      cols = gridCols;
+      rows = gridCols === 4 ? 4 : gridCols === 5 ? 4 : 5;
+      const total = cols * rows;
+      const pairCount = total / 2;
+      const pool = [...EMOJIS].slice(0, pairCount);
+      const deck = [...pool, ...pool].sort(() => Math.random() - 0.5);
+
+      cards = deck.map((emoji, i) => ({id: i, emoji, flipped: false, matched: false}));
+      flipped = []; matched = 0; moves = 0; seconds = 0; lock = false;
+
+      document.getElementById('moves').textContent = 0;
+      document.getElementById('pairs').textContent = pairCount;
+      document.getElementById('timer').textContent = 0;
+      document.getElementById('message').textContent = '';
+
+      timerInterval = setInterval(() => {
+        seconds++;
+        document.getElementById('timer').textContent = seconds;
+      }, 1000);
+
+      render();
+    }
+
+    function render() {
+      const grid = document.getElementById('grid');
+      grid.style.gridTemplateColumns = `repeat(${cols}, 70px)`;
+      grid.innerHTML = '';
+      cards.forEach((card, i) => {
+        const el = document.createElement('div');
+        el.className = 'card' + (card.flipped ? ' flipped' : '') + (card.matched ? ' matched' : '');
+        el.innerHTML = `<div class="card-front">❓</div><div class="card-back">${card.emoji}</div>`;
+        el.addEventListener('click', () => onCardClick(i));
+        grid.appendChild(el);
+      });
+    }
+
+    function onCardClick(i) {
+      if (lock || cards[i].flipped || cards[i].matched) return;
+
+      cards[i].flipped = true;
+      flipped.push(i);
+      renderCard(i);
+
+      if (flipped.length < 2) return;
+
+      lock = true;
+      moves++;
+      document.getElementById('moves').textContent = moves;
+
+      const [a, b] = flipped;
+      if (cards[a].emoji === cards[b].emoji) {
+        cards[a].matched = cards[b].matched = true;
+        matched++;
+        document.getElementById('pairs').textContent = (cards.length / 2) - matched;
+        flipped = [];
+        lock = false;
+        renderCard(a); renderCard(b);
+        if (matched === cards.length / 2) {
+          clearInterval(timerInterval);
+          document.getElementById('message').textContent =
+            `🎉 클리어! ${moves}번 시도 · ${seconds}초`;
+        }
+      } else {
+        setTimeout(() => {
+          cards[a].flipped = cards[b].flipped = false;
+          flipped = [];
+          lock = false;
+          renderCard(a); renderCard(b);
+        }, 900);
+      }
+    }
+
+    function renderCard(i) {
+      const grid = document.getElementById('grid');
+      const el = grid.children[i];
+      el.className = 'card' + (cards[i].flipped ? ' flipped' : '') + (cards[i].matched ? ' matched' : '');
+    }
+
+    initGame();
+  </script>
+</body>
+</html>

@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🐍 뱀 게임</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #1a1a2e;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      font-family: 'Segoe UI', sans-serif;
+      color: #eee;
+    }
+    .home-btn {
+      position: fixed; top: 16px; left: 16px;
+      text-decoration: none; color: #aaa;
+      background: #16213e; border: 1px solid #333;
+      padding: 8px 16px; border-radius: 8px;
+      font-size: 0.85rem; transition: color 0.2s;
+    }
+    .home-btn:hover { color: #55efc4; border-color: #55efc4; }
+    h1 { font-size: 2rem; margin-bottom: 14px; color: #55efc4; letter-spacing: 2px; }
+    .info-bar {
+      display: flex; gap: 30px; margin-bottom: 14px;
+      background: #16213e; padding: 10px 28px; border-radius: 10px; font-size: 1.1rem;
+    }
+    canvas {
+      border-radius: 10px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      display: block;
+    }
+    #message {
+      margin-top: 14px; font-size: 1.2rem; font-weight: bold;
+      color: #ffeaa7; min-height: 28px; text-align: center;
+    }
+    .btn {
+      margin-top: 12px; padding: 10px 28px; border: none;
+      border-radius: 8px; background: #55efc4; color: #1a1a2e;
+      font-size: 1rem; font-weight: 700; cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .btn:hover { opacity: 0.85; }
+    .hint { margin-top: 10px; color: #666; font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+  <a class="home-btn" href="index.html">← 홈</a>
+  <h1>🐍 뱀 게임</h1>
+  <div class="info-bar">
+    <span>점수: <strong id="score">0</strong></span>
+    <span>최고: <strong id="best">0</strong></span>
+    <span>레벨: <strong id="level">1</strong></span>
+  </div>
+  <canvas id="canvas" width="400" height="400"></canvas>
+  <div id="message">스페이스바 또는 버튼을 눌러 시작</div>
+  <button class="btn" onclick="startGame()">시작 / 재시작</button>
+  <div class="hint">방향키로 이동 · 먹이 10개마다 속도 증가</div>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const CELL = 20;
+    const COLS = canvas.width / CELL;
+    const ROWS = canvas.height / CELL;
+
+    let snake, dir, nextDir, food, score, best, level, running, loop;
+
+    best = 0;
+
+    function startGame() {
+      clearInterval(loop);
+      snake = [{x: 10, y: 10}, {x: 9, y: 10}, {x: 8, y: 10}];
+      dir = {x: 1, y: 0};
+      nextDir = {x: 1, y: 0};
+      score = 0;
+      level = 1;
+      running = true;
+      spawnFood();
+      updateInfo();
+      document.getElementById('message').textContent = '';
+      loop = setInterval(tick, getSpeed());
+    }
+
+    function getSpeed() { return Math.max(80, 180 - (level - 1) * 20); }
+
+    function spawnFood() {
+      let pos;
+      do {
+        pos = {x: Math.floor(Math.random() * COLS), y: Math.floor(Math.random() * ROWS)};
+      } while (snake.some(s => s.x === pos.x && s.y === pos.y));
+      food = pos;
+    }
+
+    function tick() {
+      dir = nextDir;
+      const head = {x: snake[0].x + dir.x, y: snake[0].y + dir.y};
+
+      if (head.x < 0 || head.x >= COLS || head.y < 0 || head.y >= ROWS ||
+          snake.some(s => s.x === head.x && s.y === head.y)) {
+        gameOver(); return;
+      }
+
+      snake.unshift(head);
+
+      if (head.x === food.x && head.y === food.y) {
+        score++;
+        if (score > best) best = score;
+        if (score % 10 === 0) {
+          level++;
+          clearInterval(loop);
+          loop = setInterval(tick, getSpeed());
+        }
+        spawnFood();
+      } else {
+        snake.pop();
+      }
+
+      updateInfo();
+      draw();
+    }
+
+    function gameOver() {
+      running = false;
+      clearInterval(loop);
+      document.getElementById('message').textContent = `💀 게임 오버! 점수: ${score}`;
+      draw();
+    }
+
+    function updateInfo() {
+      document.getElementById('score').textContent = score;
+      document.getElementById('best').textContent = best;
+      document.getElementById('level').textContent = level;
+    }
+
+    function draw() {
+      ctx.fillStyle = '#0a2a4a';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // grid
+      ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+      ctx.lineWidth = 0.5;
+      for (let i = 0; i <= COLS; i++) {
+        ctx.beginPath(); ctx.moveTo(i * CELL, 0); ctx.lineTo(i * CELL, canvas.height); ctx.stroke();
+      }
+      for (let j = 0; j <= ROWS; j++) {
+        ctx.beginPath(); ctx.moveTo(0, j * CELL); ctx.lineTo(canvas.width, j * CELL); ctx.stroke();
+      }
+
+      // food
+      ctx.fillStyle = '#e94560';
+      ctx.beginPath();
+      ctx.arc(food.x * CELL + CELL/2, food.y * CELL + CELL/2, CELL/2 - 2, 0, Math.PI * 2);
+      ctx.fill();
+
+      // snake
+      snake.forEach((seg, i) => {
+        const ratio = 1 - i / snake.length;
+        ctx.fillStyle = `rgba(85, 239, 196, ${0.4 + ratio * 0.6})`;
+        ctx.beginPath();
+        ctx.roundRect(seg.x * CELL + 1, seg.y * CELL + 1, CELL - 2, CELL - 2, 4);
+        ctx.fill();
+      });
+
+      // head eyes
+      const h = snake[0];
+      ctx.fillStyle = '#1a1a2e';
+      const ex = dir.x === 0 ? [-4, 4] : [dir.x > 0 ? 6 : -6, dir.x > 0 ? 6 : -6];
+      const ey = dir.y === 0 ? [-4, 4] : [dir.y > 0 ? 6 : -6, dir.y > 0 ? 6 : -6];
+      [[ex[0], ey[0]], [ex[1], ey[1]]].forEach(([ox, oy]) => {
+        ctx.beginPath();
+        ctx.arc(h.x * CELL + CELL/2 + ox, h.y * CELL + CELL/2 + oy, 2, 0, Math.PI*2);
+        ctx.fill();
+      });
+    }
+
+    document.addEventListener('keydown', e => {
+      const map = {
+        ArrowUp: {x:0,y:-1}, ArrowDown: {x:0,y:1},
+        ArrowLeft: {x:-1,y:0}, ArrowRight: {x:1,y:0}
+      };
+      if (map[e.key]) {
+        e.preventDefault();
+        const nd = map[e.key];
+        if (nd.x !== -dir.x || nd.y !== -dir.y) nextDir = nd;
+      }
+      if (e.code === 'Space') { e.preventDefault(); startGame(); }
+    });
+
+    // initial draw
+    ctx.fillStyle = '#0a2a4a';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  </script>
+</body>
+</html>

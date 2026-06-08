@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🎮 미니 게임 모음</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #1a1a2e;
+      min-height: 100vh;
+      font-family: 'Segoe UI', sans-serif;
+      color: #eee;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    header {
+      width: 100%;
+      padding: 48px 24px 24px;
+      text-align: center;
+    }
+
+    header h1 {
+      font-size: 2.8rem;
+      font-weight: 800;
+      letter-spacing: 3px;
+      background: linear-gradient(135deg, #e94560, #a29bfe);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    header p {
+      margin-top: 10px;
+      color: #aaa;
+      font-size: 1rem;
+      letter-spacing: 1px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 24px;
+      padding: 32px 40px 60px;
+      width: 100%;
+      max-width: 1200px;
+    }
+
+    .card {
+      background: #16213e;
+      border-radius: 16px;
+      padding: 32px 24px;
+      text-decoration: none;
+      color: #eee;
+      border: 1px solid transparent;
+      transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      cursor: pointer;
+    }
+
+    .card:hover {
+      transform: translateY(-6px);
+      border-color: var(--accent);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+    }
+
+    .card .icon {
+      font-size: 3.5rem;
+      line-height: 1;
+    }
+
+    .card h2 {
+      font-size: 1.3rem;
+      font-weight: 700;
+    }
+
+    .card p {
+      font-size: 0.88rem;
+      color: #aaa;
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    .badge {
+      padding: 4px 14px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      background: var(--accent);
+      color: #fff;
+      margin-top: 4px;
+    }
+
+    .card-mine   { --accent: #e94560; }
+    .card-snake  { --accent: #55efc4; }
+    .card-2048   { --accent: #fdcb6e; }
+    .card-break  { --accent: #74b9ff; }
+    .card-memory { --accent: #a29bfe; }
+
+    footer {
+      padding: 20px;
+      color: #555;
+      font-size: 0.8rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🎮 미니 게임 모음</h1>
+    <p>5가지 클래식 게임을 즐겨보세요</p>
+  </header>
+
+  <div class="grid">
+    <a class="card card-mine" href="minesweeper.html">
+      <div class="icon">💣</div>
+      <h2>지뢰찾기</h2>
+      <p>숫자 단서를 활용해 지뢰 위치를 추리하는 고전 퍼즐 게임. 3가지 난이도 지원.</p>
+      <div class="badge">Puzzle</div>
+    </a>
+
+    <a class="card card-snake" href="snake.html">
+      <div class="icon">🐍</div>
+      <h2>뱀 게임</h2>
+      <p>방향키로 뱀을 조종해 먹이를 먹으며 성장하세요. 자신 또는 벽에 닿으면 종료!</p>
+      <div class="badge">Arcade</div>
+    </a>
+
+    <a class="card card-2048" href="2048.html">
+      <div class="icon">🔢</div>
+      <h2>2048</h2>
+      <p>방향키로 타일을 밀어 같은 숫자끼리 합쳐 2048을 만들어보세요.</p>
+      <div class="badge">Strategy</div>
+    </a>
+
+    <a class="card card-break" href="breakout.html">
+      <div class="icon">🧱</div>
+      <h2>벽돌 깨기</h2>
+      <p>패들로 공을 튕겨 모든 벽돌을 깨는 아케이드 게임. 마우스로 패들을 조종하세요.</p>
+      <div class="badge">Arcade</div>
+    </a>
+
+    <a class="card card-memory" href="memory.html">
+      <div class="icon">🃏</div>
+      <h2>기억력 카드</h2>
+      <p>뒤집힌 카드를 두 장씩 열어 짝을 맞추세요. 적은 횟수, 빠른 시간이 목표!</p>
+      <div class="badge">Memory</div>
+    </a>
+  </div>
+
+  <footer>© 2026 Mini Game Collection</footer>
+</body>
+</html>
